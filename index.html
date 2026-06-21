@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora MEI — Pró-labore, DAS e Limite Anual</title>
+<style>
+  :root{
+    --bg:#0f172a;
+    --card:#1e293b;
+    --accent:#22c55e;
+    --warn:#f59e0b;
+    --danger:#ef4444;
+    --text:#e2e8f0;
+    --muted:#94a3b8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+    background:linear-gradient(160deg,#0f172a,#1e293b);
+    color:var(--text);
+    min-height:100vh;
+    padding:24px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+  h1{font-size:1.6rem;margin-bottom:4px;}
+  .sub{color:var(--muted);margin-bottom:24px;font-size:0.95rem;}
+  .card{
+    background:var(--card);
+    border-radius:14px;
+    padding:24px;
+    margin-bottom:20px;
+    box-shadow:0 4px 18px rgba(0,0,0,0.25);
+  }
+  label{display:block;font-size:0.85rem;color:var(--muted);margin-bottom:6px;margin-top:14px;}
+  input, select{
+    width:100%;
+    padding:10px 12px;
+    border-radius:8px;
+    border:1px solid #334155;
+    background:#0f172a;
+    color:var(--text);
+    font-size:1rem;
+  }
+  input:focus, select:focus{outline:2px solid var(--accent);}
+  .row{display:flex;gap:14px;}
+  .row > div{flex:1;}
+  .result{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 0;
+    border-bottom:1px solid #334155;
+  }
+  .result:last-child{border-bottom:none;}
+  .result .label{color:var(--muted);font-size:0.9rem;}
+  .result .value{font-weight:600;font-size:1.1rem;}
+  .badge{
+    display:inline-block;
+    padding:4px 10px;
+    border-radius:999px;
+    font-size:0.8rem;
+    font-weight:600;
+  }
+  .badge.ok{background:rgba(34,197,94,0.15);color:var(--accent);}
+  .badge.warn{background:rgba(245,158,11,0.15);color:var(--warn);}
+  .badge.danger{background:rgba(239,68,68,0.15);color:var(--danger);}
+  .bar-bg{
+    width:100%;
+    height:10px;
+    background:#0f172a;
+    border-radius:6px;
+    overflow:hidden;
+    margin-top:10px;
+  }
+  .bar-fill{
+    height:100%;
+    border-radius:6px;
+    transition:width 0.3s ease;
+  }
+  .note{font-size:0.8rem;color:var(--muted);margin-top:16px;line-height:1.4;}
+  .small-link{font-size:0.8rem;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧮 Calculadora MEI</h1>
+  <div class="sub">Pró-labore, DAS estimado e quanto falta para o teto anual.</div>
+
+  <div class="card">
+    <label for="categoria">Categoria de atividade</label>
+    <select id="categoria">
+      <option value="comercio">Comércio / Indústria</option>
+      <option value="servico">Serviços</option>
+      <option value="ambos">Comércio e Serviços</option>
+    </select>
+
+    <div class="row">
+      <div>
+        <label for="faturamentoMes">Faturamento deste mês (R$)</label>
+        <input type="number" id="faturamentoMes" placeholder="Ex: 4500" min="0" step="0.01">
+      </div>
+      <div>
+        <label for="mesAbertura">Mês de abertura do MEI</label>
+        <select id="mesAbertura"></select>
+      </div>
+    </div>
+
+    <label for="faturamentoAcumulado">Faturamento já acumulado este ano (opcional, R$)</label>
+    <input type="number" id="faturamentoAcumulado" placeholder="Ex: 18000" min="0" step="0.01">
+
+    <details style="margin-top:16px;">
+      <summary class="small-link">Ajustar valor do DAS manualmente (avançado)</summary>
+      <label for="dasManual">Valor fixo do DAS (R$) — deixe vazio para usar o padrão por categoria</label>
+      <input type="number" id="dasManual" placeholder="Ex: 76.90" min="0" step="0.01">
+    </details>
+  </div>
+
+  <div class="card">
+    <div class="result">
+      <span class="label">DAS estimado deste mês</span>
+      <span class="value" id="dasValor">R$ 0,00</span>
+    </div>
+    <div class="result">
+      <span class="label">Limite anual MEI (proporcional aos meses de atividade)</span>
+      <span class="value" id="limiteAnual">R$ 81.000,00</span>
+    </div>
+    <div class="result">
+      <span class="label">Faturamento acumulado estimado</span>
+      <span class="value" id="acumuladoTotal">R$ 0,00</span>
+    </div>
+    <div class="result">
+      <span class="label">% do limite utilizado</span>
+      <span class="value" id="percentual">0%</span>
+    </div>
+    <div class="bar-bg"><div class="bar-fill" id="barFill" style="width:0%;background:var(--accent);"></div></div>
+    <div class="result" style="margin-top:14px;">
+      <span class="label">Situação</span>
+      <span class="badge ok" id="statusBadge">Dentro do limite</span>
+    </div>
+  </div>
+
+  <div class="note">
+    Valores de DAS padrão (2025): Comércio/Indústria R$ 76,90 · Serviços R$ 80,90 · Comércio e Serviços R$ 81,90.
+    Esses valores mudam todo ano (ligados ao salário mínimo) — confirme no portal do Simples Nacional ou ajuste manualmente acima.
+    O limite anual considera proporcionalidade quando o MEI foi aberto durante o próprio ano.
+  </div>
+</div>
+
+<script>
+const DAS_PADRAO = { comercio: 76.90, servico: 80.90, ambos: 81.90 };
+const LIMITE_ANUAL = 81000;
+
+const mesAberturaSel = document.getElementById('mesAbertura');
+const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+meses.forEach((m, i) => {
+  const opt = document.createElement('option');
+  opt.value = i;
+  opt.textContent = m;
+  mesAberturaSel.appendChild(opt);
+});
+mesAberturaSel.value = 0;
+
+const categoriaSel = document.getElementById('categoria');
+const faturamentoMesInput = document.getElementById('faturamentoMes');
+const faturamentoAcumuladoInput = document.getElementById('faturamentoAcumulado');
+const dasManualInput = document.getElementById('dasManual');
+
+const dasValorEl = document.getElementById('dasValor');
+const limiteAnualEl = document.getElementById('limiteAnual');
+const acumuladoTotalEl = document.getElementById('acumuladoTotal');
+const percentualEl = document.getElementById('percentual');
+const barFillEl = document.getElementById('barFill');
+const statusBadgeEl = document.getElementById('statusBadge');
+
+function brl(valor) {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function calcular() {
+  const categoria = categoriaSel.value;
+  const faturamentoMes = parseFloat(faturamentoMesInput.value) || 0;
+  const faturamentoAcumulado = parseFloat(faturamentoAcumuladoInput.value) || 0;
+  const mesAbertura = parseInt(mesAberturaSel.value, 10);
+  const dasManual = parseFloat(dasManualInput.value);
+
+  const das = !isNaN(dasManual) && dasManualInput.value !== '' ? dasManual : DAS_PADRAO[categoria];
+
+  const mesesAtivos = 12 - mesAbertura;
+  const limiteProporcional = LIMITE_ANUAL * (mesesAtivos / 12);
+
+  const acumuladoTotal = faturamentoAcumulado + faturamentoMes;
+  const percentual = limiteProporcional > 0 ? (acumuladoTotal / limiteProporcional) * 100 : 0;
+
+  dasValorEl.textContent = brl(das);
+  limiteAnualEl.textContent = brl(limiteProporcional) + (mesesAtivos < 12 ? ` (${mesesAtivos} meses)` : '');
+  acumuladoTotalEl.textContent = brl(acumuladoTotal);
+  percentualEl.textContent = percentual.toFixed(1) + '%';
+
+  const pctClamped = Math.min(percentual, 100);
+  barFillEl.style.width = pctClamped + '%';
+
+  if (percentual >= 100) {
+    barFillEl.style.background = 'var(--danger)';
+    statusBadgeEl.className = 'badge danger';
+    statusBadgeEl.textContent = 'Limite excedido — atenção ao desenquadramento';
+  } else if (percentual >= 80) {
+    barFillEl.style.background = 'var(--warn)';
+    statusBadgeEl.className = 'badge warn';
+    statusBadgeEl.textContent = 'Próximo do limite — fique atento';
+  } else {
+    barFillEl.style.background = 'var(--accent)';
+    statusBadgeEl.className = 'badge ok';
+    statusBadgeEl.textContent = 'Dentro do limite';
+  }
+}
+
+[categoriaSel, faturamentoMesInput, faturamentoAcumuladoInput, mesAberturaSel, dasManualInput]
+  .forEach(el => el.addEventListener('input', calcular));
+
+calcular();
+</script>
+</body>
+</html>
